@@ -1,0 +1,274 @@
+<Window x:Class="DevStarter.Views.ProjectEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:DevStarter.Converters"
+        Title="Proje" Width="920" Height="640" MinWidth="780" MinHeight="500"
+        WindowStartupLocation="CenterScreen" ShowInTaskbar="True"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13">
+    <Window.Resources>
+        <conv:HexToBrushConverter x:Key="HexBrush"/>
+        <conv:NullToVisibleConverter x:Key="NullToVisible"/>
+        <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,14,0,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Opacity" Value="0.75"/>
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,5,0,0"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Opacity" Value="0.6"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="22,18,22,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Simge + ad + favori -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Border x:Name="IconBadge" Width="62" Height="62" CornerRadius="16" Background="{Binding Brush}"
+                    BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,16,0" Cursor="Hand"
+                    ToolTip="Simge seçmek için tıkla ya da buraya bir resim sürükle"
+                    AllowDrop="True" Drop="IconBadge_Drop" DragOver="IconBadge_DragOver"
+                    MouseLeftButtonUp="IconBadge_Click">
+                <Grid>
+                    <Border CornerRadius="15">
+                        <Border.Background>
+                            <ImageBrush ImageSource="{Binding IconImage}" Stretch="UniformToFill"/>
+                        </Border.Background>
+                    </Border>
+                    <TextBlock Text="{Binding Initials}" Foreground="White" FontSize="21" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Visibility="{Binding HasIcon, Converter={StaticResource InverseBoolToVis}}"/>
+                </Grid>
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="Proje adı" FontSize="12" Opacity="0.75" Margin="0,0,0,5"/>
+                <TextBox x:Name="NameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontSize="15"/>
+            </StackPanel>
+            <CheckBox Grid.Column="2" Content="Favori (en üstte)" IsChecked="{Binding IsFavorite}"
+                      VerticalAlignment="Bottom" Margin="18,0,0,4"/>
+        </Grid>
+
+        <!-- Renk + simge -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,14,0,0">
+            <TextBlock Text="Renk" VerticalAlignment="Center" Opacity="0.75" FontSize="12" Margin="0,0,12,0"/>
+            <ListBox x:Name="Swatches" SelectedItem="{Binding Color}" Background="Transparent" BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" Padding="0">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Ring" Width="30" Height="30" CornerRadius="15" Margin="0,0,6,0"
+                                            BorderThickness="2" BorderBrush="Transparent" Background="Transparent">
+                                        <Ellipse Width="20" Height="20" Fill="{Binding Converter={StaticResource HexBrush}}"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Ring" Property="BorderBrush" Value="#40FFFFFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Ring" Property="BorderBrush" Value="#E6FFFFFF"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+            </ListBox>
+            <Rectangle Width="1" Fill="#30FFFFFF" Margin="10,4,16,4"/>
+            <TextBlock Text="Simge" VerticalAlignment="Center" Opacity="0.75" FontSize="12" Margin="0,0,10,0"/>
+            <Button Content="Resim seç…" Click="PickIcon_Click"/>
+            <Button Content="Panodan yapıştır" Click="PasteIcon_Click" Margin="6,0,0,0"
+                    ToolTip="Kopyaladığın bir resmi (ekran görüntüsü, logo…) simge yap"/>
+            <Button Content="Kaldır" Click="RemoveIcon_Click" Margin="6,0,0,0"
+                    Visibility="{Binding HasIcon, Converter={StaticResource BoolToVis}}"/>
+        </StackPanel>
+
+        <!-- Hedefler + form -->
+        <Grid Grid.Row="2" Margin="0,18,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="340"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Tıklayınca açılacaklar" FontSize="12" Opacity="0.75" Margin="0,0,0,6"/>
+                <WrapPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                    <Button Content="+ Ekle" Click="AddTarget_Click" MinWidth="80" Style="{DynamicResource AccentButtonStyle}"/>
+                    <Button Content="&#xE74A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Click="Up_Click" Margin="6,0,0,0" ToolTip="Yukarı taşı"/>
+                    <Button Content="&#xE74B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Click="Down_Click" Margin="6,0,0,0" ToolTip="Aşağı taşı"/>
+                    <Button Content="Sil" Click="Remove_Click" Margin="6,0,0,0"/>
+                    <Button Content="Test et" Click="Test_Click" Margin="6,0,0,0" ToolTip="Sadece seçili hedefi şimdi aç"/>
+                </WrapPanel>
+                <Grid>
+                    <ListBox x:Name="TargetList" SelectionChanged="TargetList_SelectionChanged"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="30"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center" MinWidth="0" Padding="0"
+                                              Margin="0,0,6,0" ToolTip="Etkin"/>
+                                    <Image Grid.Column="1" Source="{Binding Icon}" Width="22" Height="22"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Visibility="{Binding Icon, Converter={StaticResource NullToVisible}}"/>
+                                    <StackPanel Grid.Column="2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Location}" FontSize="11" Opacity="0.55" TextTrimming="CharacterEllipsis"
+                                                   MaxHeight="16"/>
+                                        <TextBlock Text="{Binding Error}" FontSize="11" Foreground="#FFFF8A8A" TextWrapping="Wrap"
+                                                   Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock x:Name="EmptyList" Text="Henüz hedef yok.&#10;'+ Ekle' ile Unity projesi, VS Code klasörü,&#10;Chrome sayfaları, Docker, Blender… ekle."
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                               Opacity="0.55" IsHitTestVisible="False" LineHeight="19"/>
+                </Grid>
+            </DockPanel>
+
+            <Border Grid.Column="2" CornerRadius="8" BorderThickness="1" BorderBrush="#22FFFFFF" Background="#0AFFFFFF" Padding="18,14">
+                <Grid>
+                    <TextBlock x:Name="EmptyForm" Text="Soldan bir hedef seç ya da '+ Ekle' ile yeni hedef ekle."
+                               Opacity="0.55" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <ScrollViewer x:Name="FormScroll" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="Form" DataContext="{Binding SelectedItem, ElementName=TargetList}" Margin="0,0,6,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Image Source="{Binding Icon}" Width="24" Height="24" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <TextBlock Text="{Binding KindName}" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="PathRow">
+                                <TextBlock x:Name="PathLabel" Text="Yol" Style="{StaticResource FieldLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="PathBox" Text="{Binding Path, UpdateSourceTrigger=PropertyChanged}" TextChanged="PathBox_TextChanged"/>
+                                    <Button x:Name="BrowseButton" Grid.Column="1" Content="Gözat…" Click="BrowsePath_Click" Margin="6,0,0,0"/>
+                                </Grid>
+                                <TextBlock x:Name="PathHint" Style="{StaticResource Hint}"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="UrlsRow">
+                                <TextBlock Text="Açılacak sayfalar (her satıra bir adres)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding UrlsText, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True"
+                                         TextWrapping="NoWrap" MinHeight="96" MaxHeight="200" VerticalScrollBarVisibility="Auto"/>
+                                <Button Content="+ Açık sayfa veya yer imi ekle…" Click="AddChromePage_Click"
+                                        HorizontalAlignment="Left" Margin="0,8,0,0"
+                                        ToolTip="Chrome'da şu an açık sayfalardan veya yer imlerinden (yıldızladıkların) seç"/>
+                                <TextBlock Text="Hepsi tek pencerede sekme olarak açılır. https:// yazmasan da olur. Boş bırakırsan profil boş pencereyle açılır."
+                                           Style="{StaticResource Hint}"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="ProfileRow">
+                                <TextBlock Text="Chrome profili" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox x:Name="ProfileBox" SelectedValuePath="Dir" DisplayMemberPath="Display"
+                                          SelectedValue="{Binding ChromeProfile}" MinWidth="260" HorizontalAlignment="Left"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="ArgsRow">
+                                <TextBlock x:Name="ArgsLabel" Text="Ek argümanlar (isteğe bağlı)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding Args, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock x:Name="ArgsHint" Style="{StaticResource Hint}"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="WorkDirRow">
+                                <TextBlock Text="Çalışma klasörü (isteğe bağlı)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding WorkingDir, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="ExeRow">
+                                <TextBlock Text="Program yolu (boş bırakırsan otomatik bulunur)" Style="{StaticResource FieldLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding ExeOverride, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Button Grid.Column="1" Content="Gözat…" Click="BrowseExe_Click" Margin="6,0,0,0"/>
+                                </Grid>
+                                <TextBlock x:Name="ExeHint" Style="{StaticResource Hint}"/>
+                            </StackPanel>
+
+                            <TextBlock Text="Görünen ad (isteğe bağlı)" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Gecikme (ms)" FontSize="12" Opacity="0.75" Margin="0,0,0,5"/>
+                                    <TextBox Text="{Binding DelayMs, UpdateSourceTrigger=PropertyChanged}" Width="110" HorizontalAlignment="Left"/>
+                                </StackPanel>
+                                <CheckBox Grid.Column="1" Content="Etkin — proje açılırken bu da açılsın" IsChecked="{Binding Enabled}"
+                                          VerticalAlignment="Bottom" Margin="18,0,0,4"/>
+                            </Grid>
+                            <TextBlock Text="Gecikme, projeye tıkladıktan sonra bu hedef için beklenecek süredir. Diğer hedefler beklemeden açılır."
+                                       Style="{StaticResource Hint}"/>
+
+                            <TextBlock x:Name="TestResult" Margin="0,16,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Alt çubuk -->
+        <Grid Grid.Row="3" Margin="0,18,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button x:Name="DeleteProjectButton" Click="DeleteProject_Click" Margin="0,0,14,0" Foreground="#FFFF8A8A"
+                    ToolTip="Projeyi listeden kaldır (dosyalarına dokunulmaz)">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                    <TextBlock Text="Projeyi sil" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <TextBlock Grid.Column="1" Text="İpucu: kart görünümünde küçük uygulama ikonuna tıklarsan yalnızca o hedef açılır."
+                       Opacity="0.5" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,14,0"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="İptal" IsCancel="True" MinWidth="96"/>
+                <Button Content="Kaydet" IsDefault="True" Click="Save_Click" MinWidth="96" Margin="8,0,0,0"
+                        Style="{DynamicResource AccentButtonStyle}"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DevStarter</RootNamespace>
+    <AssemblyName>DevStarter</AssemblyName>
+    <Version>1.0.0</Version>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets\devStarter.ico</ApplicationIcon>
+    <!-- Exe'ye derleme makinesinin klasör yolu yazılmasın (paylaşılan exe'de görünmesin) -->
+    <PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
+    <!-- Hata kaydında satır numaraları için hata ayıklama bilgisi exe'nin içinde (ayrı .pdb yok) -->
+    <DebugType>embedded</DebugType>
+    <!-- WPF Fluent tema (ThemeMode) hâlâ deneysel API olarak işaretli -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+</Project>
