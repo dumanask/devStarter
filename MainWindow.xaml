@@ -15,6 +15,34 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <conv:NullToVisibleConverter x:Key="NullToVisible"/>
         <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <conv:PositiveToVisibleConverter x:Key="PosToVis"/>
+
+        <!-- Ajan sayaç rozeti (kartta) -->
+        <Style x:Key="AgentPill" TargetType="Border">
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="MinWidth" Value="20"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="5,0"/>
+            <Setter Property="Margin" Value="3,0,0,0"/>
+        </Style>
+        <Style x:Key="AgentPillText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <!-- Bekleyen ajan: yavaşça yanıp söner -->
+        <Storyboard x:Key="PulseStoryboard">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.4" Duration="0:0:0.9"
+                             AutoReverse="True" RepeatBehavior="Forever"/>
+        </Storyboard>
+        <Style x:Key="PulseBorder" TargetType="Border" BasedOn="{StaticResource AgentPill}">
+            <Style.Triggers>
+                <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard Storyboard="{StaticResource PulseStoryboard}"/>
+                </EventTrigger>
+            </Style.Triggers>
+        </Style>
 
         <!-- Alt çubuk düğmeleri (+ Yeni proje, görünüm, menü) -->
         <Style x:Key="BarButton" TargetType="Button">
@@ -213,6 +241,11 @@
                 <Ellipse Width="11" Height="11" Fill="#FFE5484D" Stroke="#FF1B1B20" StrokeThickness="2"
                          HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,0,0"
                          Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                <!-- Ajan durumu: sarı (bekliyor) > yeşil (çalışıyor) > gri (boşta) -->
+                <Ellipse x:Name="AgentDot" Width="13" Height="13" Fill="{Binding AgentDot}" Stroke="#FF1B1B20" StrokeThickness="2.5"
+                         HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="0,0,0,2" Cursor="Hand"
+                         ToolTip="{Binding AgentTip}" MouseLeftButtonUp="AgentBadge_Click"
+                         Visibility="{Binding HasAgents, Converter={StaticResource BoolToVis}}"/>
                 <!-- Üzerine gelince: düzenle rozeti -->
                 <Border x:Name="EditBadge" Width="19" Height="19" CornerRadius="9.5" Background="#F02A2A31"
                         BorderBrush="#55FFFFFF" BorderThickness="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
@@ -225,6 +258,19 @@
                 <Trigger SourceName="ItemRoot" Property="IsMouseOver" Value="True">
                     <Setter TargetName="EditBadge" Property="Visibility" Value="Visible"/>
                 </Trigger>
+                <DataTrigger Binding="{Binding HasWaitingAgent}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard x:Name="DotPulse">
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="AgentDot" Storyboard.TargetProperty="Opacity"
+                                                 From="1" To="0.35" Duration="0:0:0.9" AutoReverse="True" RepeatBehavior="Forever"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                        <StopStoryboard BeginStoryboardName="DotPulse"/>
+                    </DataTrigger.ExitActions>
+                </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
 
@@ -262,7 +308,12 @@
                     <StackPanel Grid.Column="1" Margin="10,0,4,0" VerticalAlignment="Center">
                         <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="#F2FFFFFF"
                                    TextTrimming="CharacterEllipsis"/>
-                        <ItemsControl ItemsSource="{Binding Targets}" Margin="0,4,0,0" Height="16" ClipToBounds="True">
+                        <Grid Margin="0,4,0,0" Height="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ItemsControl ItemsSource="{Binding Targets}" ClipToBounds="True">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Orientation="Horizontal"/>
@@ -291,6 +342,33 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <!-- Ajan sayaçları: sarı bekliyor, yeşil çalışıyor, gri boşta -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Background="Transparent" Cursor="Hand"
+                                    ToolTip="{Binding AgentTip}" MouseLeftButtonUp="AgentBadge_Click"
+                                    Visibility="{Binding HasAgents, Converter={StaticResource BoolToVis}}">
+                            <Border Style="{StaticResource PulseBorder}" Background="#38FACC15"
+                                    Visibility="{Binding AgentWaiting, Converter={StaticResource PosToVis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="6" Height="6" Fill="#FFFACC15" VerticalAlignment="Center"/>
+                                    <TextBlock Style="{StaticResource AgentPillText}" Text="{Binding AgentWaiting}" Foreground="#FFFDE047"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource AgentPill}" Background="#3022C55E"
+                                    Visibility="{Binding AgentWorking, Converter={StaticResource PosToVis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="6" Height="6" Fill="#FF22C55E" VerticalAlignment="Center"/>
+                                    <TextBlock Style="{StaticResource AgentPillText}" Text="{Binding AgentWorking}" Foreground="#FF6EE7A0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource AgentPill}" Background="#22FFFFFF"
+                                    Visibility="{Binding AgentIdle, Converter={StaticResource PosToVis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="6" Height="6" Fill="#FF9A9AA4" VerticalAlignment="Center"/>
+                                    <TextBlock Style="{StaticResource AgentPillText}" Text="{Binding AgentIdle}" Foreground="#FFC8C8D0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        </Grid>
                     </StackPanel>
                     <Grid Grid.Column="2">
                         <TextBlock x:Name="Star" Text="&#xE735;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11"
@@ -363,6 +441,19 @@
                 <!-- Alt çubuk: + Yeni proje, görünüm (kart ⇄ ikon), menü -->
                 <StackPanel x:Name="Footer" DockPanel.Dock="Bottom" Orientation="Horizontal">
                     <Button x:Name="AddButton" Style="{StaticResource BarButton}" Click="AddClick" ToolTip="Proje ekle" FontSize="13"/>
+                    <Button x:Name="AgentsButton" Style="{StaticResource BarButton}" Click="AgentsButton_Click"
+                            ToolTip="Ajanlar ve kullanım limitleri">
+                        <Grid>
+                            <TextBlock Text="&#xE99A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border x:Name="AgentsBadge" MinWidth="15" Height="15" CornerRadius="7.5" Padding="3,0"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0"
+                                    Background="#FFFACC15" Visibility="Collapsed">
+                                <TextBlock x:Name="AgentsBadgeText" FontSize="9.5" FontWeight="Bold" Foreground="#FF1B1B20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                    </Button>
                     <StackPanel x:Name="SmallButtons" Orientation="Horizontal">
                         <Button x:Name="ViewButton" Style="{StaticResource BarButton}" Click="ViewToggle_Click"
                                 FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"/>

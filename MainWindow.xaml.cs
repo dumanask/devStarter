@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using DevStarter.Agents;
 using DevStarter.Launchers;
 using DevStarter.Models;
 using DevStarter.Services;
@@ -76,6 +77,9 @@ public partial class MainWindow : Window
 
         Loaded += (_, _) => CollapseLater();
         Deactivated += (_, _) => RestartHide();
+
+        AgentMonitor.Instance.PropertyChanged += (_, _) => UpdateAgentIndicators();
+        settings.Projects.CollectionChanged += (_, _) => AgentMonitor.Instance.Remap();
     }
 
     // Uygulama ikinci kez başlatılınca (kısayol, Başlat menüsü) kenar çubuğunu kısa süre göster
@@ -200,7 +204,7 @@ public partial class MainWindow : Window
 
         ViewButton.Content = cards ? "" : "";
         ViewButton.ToolTip = cards ? "Sadece ikonlar (küçült)" : "Kartlar (isimlerle)";
-        AddButton.Content = cards && !top ? "+   Yeni proje" : "+";
+        AddButton.Content = cards && !top ? "+  Yeni proje" : "+";
         AddButton.FontSize = cards && !top ? 13 : 20;
         Footer.VerticalAlignment = VerticalAlignment.Center;
         SmallButtons.Orientation = Orientation.Horizontal;
@@ -210,6 +214,7 @@ public partial class MainWindow : Window
             Footer.Orientation = Orientation.Horizontal;
             Footer.Margin = new Thickness(8, 0, 2, 0);
             Size(AddButton, 44, 44, new Thickness(0));
+            Size(AgentsButton, 34, 44, new Thickness(6, 0, 0, 0));
             Size(ViewButton, 34, 44, new Thickness(6, 0, 0, 0));
             Size(MenuButton, 34, 44, new Thickness(6, 0, 0, 0));
         }
@@ -217,19 +222,80 @@ public partial class MainWindow : Window
         {
             Footer.Orientation = Orientation.Horizontal;
             Footer.Margin = new Thickness(0, 6, 0, 0);
-            Size(AddButton, 230 - 2 * (36 + 6), 36, new Thickness(0));
+            Size(AddButton, 230 - 3 * (36 + 6), 36, new Thickness(0));
+            Size(AgentsButton, 36, 36, new Thickness(6, 0, 0, 0));
             Size(ViewButton, 36, 36, new Thickness(6, 0, 0, 0));
             Size(MenuButton, 36, 36, new Thickness(6, 0, 0, 0));
         }
         else
         {
-            // İkon modu (48 px): + üstte, altında iki küçük düğme yan yana
+            // İkon modu (48 px): + üstte, altında ajanlar, en altta iki küçük düğme yan yana
             Footer.Orientation = Orientation.Vertical;
             Footer.Margin = new Thickness(0, 6, 0, 0);
             Size(AddButton, 48, 40, new Thickness(0));
+            Size(AgentsButton, 48, 32, new Thickness(0, 6, 0, 0));
             Size(ViewButton, 21, 26, new Thickness(0, 6, 0, 0));
             Size(MenuButton, 21, 26, new Thickness(6, 6, 0, 0));
         }
+    }
+
+    // ================= Ajanlar =================
+
+    AgentsWindow? agentsWindow;
+
+    void AgentsButton_Click(object sender, RoutedEventArgs e) => OpenAgents(null);
+
+    // Proje kartındaki sayaç rozeti / ikon modundaki nokta
+    void AgentBadge_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        OpenAgents(ProjectOf(sender));
+    }
+
+    public void OpenAgents(Project? project)
+    {
+        if (agentsWindow == null)
+        {
+            agentsWindow = new AgentsWindow();
+            agentsWindow.Closed += (_, _) => agentsWindow = null;
+            agentsWindow.Show();
+        }
+        agentsWindow.ShowProject(project);
+        if (agentsWindow.WindowState == WindowState.Minimized) agentsWindow.WindowState = WindowState.Normal;
+        agentsWindow.Activate();
+    }
+
+    // Bekleyen ajan varsa: alt çubuktaki rozet ve kapalı kenar şeridi sarı yanar
+    void UpdateAgentIndicators()
+    {
+        var m = AgentMonitor.Instance;
+        int waiting = m.WaitingCount;
+        AgentsBadge.Visibility = waiting > 0 ? Visibility.Visible : Visibility.Collapsed;
+        AgentsBadgeText.Text = waiting.ToString();
+        AgentsButton.ToolTip = m.OpenCount == 0
+            ? "Ajanlar ve kullanım limitleri"
+            : $"Ajanlar: {m.OpenCount} açık oturum" + (waiting > 0 ? $" · {waiting} seni bekliyor" : "")
+              + (m.WorkingCount > 0 ? $" · {m.WorkingCount} çalışıyor" : "");
+
+        bool alert = waiting > 0;
+        if (alert == handleAlert) return;
+        handleAlert = alert;
+        Handle.Background = alert ? AgentColors.Waiting : new SolidColorBrush(Color.FromArgb(0xA8, 0xFF, 0xFF, 0xFF));
+        Handle.BeginAnimation(OpacityProperty, alert
+            ? new DoubleAnimation(1, 0.35, TimeSpan.FromMilliseconds(900)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever }
+            : null);
+    }
+
+    bool handleAlert;
+
+    public void ShowAgentNotice(Notifications.AgentNotice n)
+    {
+        var accent = n.Kind == Notifications.NoticeKind.Waiting
+            ? Color.FromArgb(0xC0, 0xFA, 0xCC, 0x15)
+            : Color.FromArgb(0x90, 0x22, 0xC5, 0x5E);
+        var session = n.Session;
+        ShowToast(n.Title, n.Body, accent, TimeSpan.FromSeconds(n.Kind == Notifications.NoticeKind.Waiting ? 12 : 7),
+            () => ProcessUtil.Focus(session));
     }
 
     void ViewToggle_Click(object sender, RoutedEventArgs e)
@@ -446,14 +512,23 @@ public partial class MainWindow : Window
     // ================= Bildirim =================
 
     void ShowToast(string title, string body, bool error)
+        => ShowToast(title, body,
+            error ? Color.FromArgb(0x90, 0xE5, 0x48, 0x4D) : Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF),
+            TimeSpan.FromSeconds(error ? 8 : 4), null);
+
+    Action? toastAction;
+
+    // onClick: baloncuğa tıklanınca yapılacak iş (ör. ajanın penceresini öne getir)
+    void ShowToast(string title, string body, Color accent, TimeSpan duration, Action? onClick)
     {
         ToastTitle.Text = title;
         ToastBody.Text = body;
-        ToastBorder.BorderBrush = new SolidColorBrush(error ? Color.FromArgb(0x90, 0xE5, 0x48, 0x4D) : Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
+        ToastBorder.BorderBrush = new SolidColorBrush(accent);
+        toastAction = onClick;
         Toast.IsOpen = false;
         Toast.IsOpen = true;
         toastTimer.Stop();
-        toastTimer.Interval = TimeSpan.FromSeconds(error ? 8 : 4);
+        toastTimer.Interval = duration;
         toastTimer.Start();
     }
 
@@ -461,6 +536,9 @@ public partial class MainWindow : Window
     {
         toastTimer.Stop();
         Toast.IsOpen = false;
+        var action = toastAction;
+        toastAction = null;
+        action?.Invoke();
     }
 
     // ================= Menüler =================
@@ -579,6 +657,7 @@ public partial class MainWindow : Window
         var cm = new ContextMenu();
         cm.Items.Add(Mi("Yeni proje…", OpenProjectPicker, bold: true));
         cm.Items.Add(Mi("Boş proje oluştur…", NewEmptyProject));
+        cm.Items.Add(Mi("Ajanlar ve limitler…", () => OpenAgents(null)));
         cm.Items.Add(new Separator());
 
         var dock = new MenuItem { Header = "Konum" };
@@ -728,6 +807,7 @@ public partial class MainWindow : Window
             if (isNew) settings.Projects.Add(p);
             Save();
             view.Refresh();
+            AgentMonitor.Instance.Remap();   // hedef klasörleri değişmiş olabilir
         }
         RestartHide();
     }

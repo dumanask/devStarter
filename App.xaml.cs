@@ -1,5 +1,7 @@
 using System.Windows;
+using DevStarter.Agents;
 using DevStarter.Models;
+using DevStarter.Notifications;
 using DevStarter.Services;
 
 namespace DevStarter;
@@ -13,6 +15,7 @@ public partial class App : Application
     RegisteredWaitHandle? showWait;
 
     public static AppSettings Settings { get; private set; } = new();
+    public static NotificationHub? Notifications { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -52,6 +55,11 @@ public partial class App : Application
         MainWindow = window;
         window.Show();
 
+        // Ajan oturumlarını izle; durum değişince bildirim katmanına (şimdilik uygulama içi baloncuk) aktar
+        AgentMonitor.Instance.Start(Settings.Projects, Dispatcher, Settings.Agents);
+        Notifications = new NotificationHub(AgentMonitor.Instance, Settings.Agents);
+        Notifications.Add(new InAppNotifier(window));
+
         showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
         showWait = ThreadPool.RegisterWaitForSingleObject(showEvent,
             (_, _) => Dispatcher.BeginInvoke(window.Reveal), null, Timeout.Infinite, executeOnlyOnce: false);
@@ -59,6 +67,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        AgentMonitor.Instance.Stop();
         showWait?.Unregister(null);
         showEvent?.Dispose();
         mutex?.Dispose();

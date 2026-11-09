@@ -63,6 +63,53 @@ public class Project : ObservableObject
 
     public void RaiseStatus() => Raise(nameof(HasError));
 
+    // ---- Bu projenin klasöründe açık ajan oturumları (AgentMonitor günceller, kaydedilmez) ----
+    int agentWorking, agentWaiting, agentIdle;
+    string agentKinds = "";
+
+    [JsonIgnore] public int AgentWorking => agentWorking;
+    [JsonIgnore] public int AgentWaiting => agentWaiting;
+    [JsonIgnore] public int AgentIdle => agentIdle;
+    [JsonIgnore] public bool HasAgents => agentWorking + agentWaiting + agentIdle > 0;
+    [JsonIgnore] public bool HasWaitingAgent => agentWaiting > 0;
+
+    // İkon modundaki nokta: sarı (bekliyor) > yeşil (çalışıyor) > gri (boşta)
+    [JsonIgnore]
+    public Brush? AgentDot => agentWaiting > 0 ? DevStarter.Agents.AgentColors.Waiting
+        : agentWorking > 0 ? DevStarter.Agents.AgentColors.Working
+        : agentIdle > 0 ? DevStarter.Agents.AgentColors.Idle
+        : null;
+
+    [JsonIgnore]
+    public string AgentTip
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (agentWaiting > 0) parts.Add($"{agentWaiting} seni bekliyor");
+            if (agentWorking > 0) parts.Add($"{agentWorking} çalışıyor");
+            if (agentIdle > 0) parts.Add($"{agentIdle} boşta");
+            if (parts.Count == 0) return "";
+            return $"Ajanlar ({agentKinds}): {string.Join(" · ", parts)}\nTıkla: ajan panelini aç";
+        }
+    }
+
+    public void SetAgentCounts(int working, int waiting, int idle, string kinds)
+    {
+        if (working == agentWorking && waiting == agentWaiting && idle == agentIdle && kinds == agentKinds) return;
+        agentWorking = working;
+        agentWaiting = waiting;
+        agentIdle = idle;
+        agentKinds = kinds;
+        Raise(nameof(AgentWorking));
+        Raise(nameof(AgentWaiting));
+        Raise(nameof(AgentIdle));
+        Raise(nameof(HasAgents));
+        Raise(nameof(HasWaitingAgent));
+        Raise(nameof(AgentDot));
+        Raise(nameof(AgentTip));
+    }
+
     public Project Clone() => new()
     {
         Id = Id,
